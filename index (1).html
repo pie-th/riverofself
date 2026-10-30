@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>River of Self</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=BIZ+UDMincho&family=Noto+Sans+Thai:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #000; --paper: #fff; --grey: #bababa;
+    /* only three type sizes on the whole site */
+    --L: clamp(26px, 3vw, 40px); --M: 20px; --S: 14px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "DotGothic16", "Noto Sans Thai", monospace;
+    overflow: hidden;
+  }
+
+  /* screens cross-fade */
+  .screen {
+    position: fixed; inset: 0; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px 16px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 1s ease, visibility 0s linear 1s;
+  }
+  .screen.on {
+    opacity: 1; visibility: visible; pointer-events: auto;
+    transition: opacity 1s ease, visibility 0s;
+  }
+
+  .pill {
+    font-family: inherit; font-size: var(--M); cursor: pointer;
+    background: #000; color: #fff; border: 1px solid #000; border-radius: 54px; padding: 14px 34px;
+  }
+  .pill:hover { background: #fff; color: #000; }
+  .pill.ghost { background: #fff; color: #000; }
+  .pill.ghost:hover { background: #000; color: #fff; }
+
+  /* welcome */
+  #welcome h1 { font-weight: 400; font-size: var(--L); line-height: 1.2; }
+  #welcome .current { font-size: var(--S); margin-top: 8px; }
+  #welcome .note { font-size: var(--M); max-width: 710px; margin-top: 120px; line-height: 1.4; }
+  #welcome .pill { margin-top: 48px; }
+
+  /* question */
+  #question .num { font-size: var(--L); margin-bottom: 140px; }
+  #question h2 { font-weight: 400; font-size: var(--L); max-width: 560px; line-height: 1.3; }
+  #question .field { width: min(656px, 100%); margin-top: 110px; }
+  #question .hint { font-size: var(--S); color: var(--grey); margin-top: 14px; }
+  #question .field { margin-top: 70px; }
+  #question .num { margin-bottom: 90px; }
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .chapter {
+    font-family: inherit; cursor: pointer; width: 100%; min-height: 56px; border-radius: 54px;
+    border: 1px solid #000; background: #fff; color: #000; font-size: var(--M); padding: 10px 24px;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px; text-align: left;
+  }
+  .chapter .yrs { font-family: "BIZ UDMincho", serif; font-size: var(--S); color: #888; white-space: nowrap; }
+  .chapter:hover, .chapter:focus-visible { background: #000; color: #fff; outline: none; }
+  .chapter:hover .yrs, .chapter:focus-visible .yrs { color: #bbb; }
+  .chapter.here { background: #000; color: #fff; cursor: default; }
+  .chapter.here .yrs { color: #bbb; }
+
+  /* moving to another part of the River, from inside the River */
+  #moveBtn {
+    position: fixed; left: 4vw; top: 3vh; z-index: 9; font-family: inherit; font-size: var(--S); cursor: pointer;
+    background: rgba(255,255,255,.92); color: #000; border: 1px solid #000; border-radius: 54px; padding: 8px 16px;
+  }
+  #moveBtn:hover { background: #000; color: #fff; }
+  body.arriving #moveBtn, body.caught #moveBtn, body.moving-river #moveBtn { opacity: 0; pointer-events: none; }
+  #sheet {
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 12;
+    width: min(620px, 100%); background: #fff; border: 1px solid #000; border-bottom: 0;
+    padding: 22px 20px 26px; display: none; text-align: left;
+  }
+  #sheet .label { font-size: var(--S); color: #777; margin-bottom: 14px; }
+  #sheet .close { margin-top: 14px; font-family: inherit; font-size: var(--S); background: none; border: 0; color: #777; cursor: pointer; text-decoration: underline; }
+  body:not(.in-river) #moveBtn, body:not(.in-river) #sheet { display: none !important; }
+
+  /* ---------- the boat (stays with you from the guide into the river) ---------- */
+  #boat {
+    position: fixed; left: 0; right: 0; bottom: -2px; height: 26vh; z-index: 7;
+    pointer-events: none; opacity: 0; transition: opacity 1s ease;
+  }
+  #boat.on { opacity: 1; }
+  #boat svg { width: 100%; height: 100%; display: block; animation: rock 3.6s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+  @keyframes rock { from { transform: translateY(0) rotate(-.5deg); } to { transform: translateY(5px) rotate(.5deg); } }
+
+  /* ---------- guide: a boat trip past three stops ---------- */
+  #guide { cursor: pointer; padding: 0; overflow: hidden; }
+  #pano {
+    position: absolute; top: 0; left: 0; height: 100%; width: 300vw; display: flex;
+    transition: transform 2.6s cubic-bezier(.45,.05,.35,1);
+  }
+  .stop { position: relative; width: 100vw; height: 100%; flex: none; overflow: hidden; }
+  .stop svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #stop3 svg { transition: transform 1.8s cubic-bezier(.45,.05,.35,1); transform-origin: 50% 72%; }
+  #guide.zoom #stop3 svg { transform: scale(1.3); }
+  #guide.zoom .ticks { opacity: 0; transition: opacity 1s ease; }
+
+  #guide .say {
+    position: absolute; left: 6.5vw; top: 7.4vh; right: 6.5vw; max-width: 1146px; z-index: 2;
+    text-align: left; font-size: var(--L); line-height: 1.45;
+    transition: opacity .7s ease; background: rgba(255,255,255,.85);
+  }
+  #guide .say .sub { display: block; font-size: var(--S); color: #888; margin-top: .6em; }
+  #guide .next { position: absolute; right: 6.5vw; top: 3vh; font-size: var(--S); color: #999; transition: opacity .7s ease; z-index: 2; }
+  #guide.moving .say, #guide.moving .next, #guide.zoom .say, #guide.zoom .next { opacity: 0; }
+
+  .flowdash { stroke-dasharray: 14 18; animation: dash 1.1s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: -32; } }
+  .grow { transform-box: fill-box; transform-origin: center; animation: grow 3.2s ease-out both; }
+  @keyframes grow { from { transform: scale(.12, .4); } to { transform: scale(1, 1); } }
+  .drop { transform-box: fill-box; animation: fall 1.8s ease-in infinite; }
+  @keyframes fall {
+    0% { transform: translateY(-140px); opacity: 0; } 20% { opacity: 1; }
+    85% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(0); opacity: 0; }
+  }
+  .ticks g, .ticks path { animation: drift 3.6s ease-in-out infinite alternate; }
+  @keyframes drift { from { transform: translateX(-24px); } to { transform: translateX(24px); } }
+  .sway { transform-box: fill-box; transform-origin: 50% 100%; animation: sway 2.6s ease-in-out infinite alternate; }
+  @keyframes sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+
+  /* ---------- river ---------- */
+  #river { padding: 0; overflow: hidden; }
+  #world { position: absolute; inset: 0; }
+  #land { position: absolute; inset: 0; width: 100%; height: 100%; transform: scale(1.3); transform-origin: 50% 72%; }
+  /* the words are drawn onto the water in perspective on a canvas (smooth, no 3D layers) */
+  #water { position: absolute; inset: 0; width: 100%; height: 100%; transition: opacity 2.4s ease; }
+  #river.arriving #water { opacity: 0; }
+  #rings { position: absolute; inset: 0; width: 100%; height: 100%; display: none; pointer-events: none; z-index: 8; }
+  #river.looking #rings { display: block; }
+  /* your cursor is the binoculars: click anywhere on the River to look through them */
+  body.in-river:not(.arriving) #river:not(.looking):not(.caught) { cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2256%22%20height%3D%2256%22%20viewBox%3D%220%200%20120%20120%22%3E%3Cg%20stroke%3D%22%23fff%22%20stroke-width%3D%228%22%20stroke-linejoin%3D%22round%22%20paint-order%3D%22stroke%22%3E%3Crect%20x%3D%2230%22%20y%3D%2218%22%20width%3D%2220%22%20height%3D%2230%22%20rx%3D%228%22/%3E%3Crect%20x%3D%2270%22%20y%3D%2218%22%20width%3D%2220%22%20height%3D%2230%22%20rx%3D%228%22/%3E%3Cpath%20d%3D%22M%2026%2040%20L%2052%2040%20L%2060%2056%20L%2068%2040%20L%2094%2040%20L%20108%2078%20L%2066%2078%20L%2060%2066%20L%2054%2078%20L%2012%2078%20Z%22/%3E%3Ccircle%20cx%3D%2234%22%20cy%3D%2280%22%20r%3D%2224%22/%3E%3Ccircle%20cx%3D%2286%22%20cy%3D%2280%22%20r%3D%2224%22/%3E%3C/g%3E%3Ccircle%20cx%3D%2234%22%20cy%3D%2280%22%20r%3D%2213%22%20fill%3D%22%23fff%22/%3E%3Ccircle%20cx%3D%2286%22%20cy%3D%2280%22%20r%3D%2213%22%20fill%3D%22%23fff%22/%3E%3C/svg%3E") 28 40, zoom-in; }
+  #binoBtn { display: none !important; }
+  #river.looking { cursor: none; }
+  #river.caught { cursor: default; }
+
+  /* the binoculars rest on the deck of your boat */
+  #binoBtn {
+    position: fixed; right: 16vw; bottom: 20vh; width: 104px; height: 104px;
+    border: 0; background: none; cursor: pointer; padding: 0; z-index: 9;
+    filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 3px #fff);
+    transition: opacity .6s ease, transform .3s ease;
+  }
+  #binoBtn svg { width: 100%; height: 100%; display: block; }
+  #binoBtn:hover { transform: scale(1.06); }
+  #binoBtn.call { animation: call 1.6s ease-in-out infinite; }
+  @keyframes call { 50% { transform: translateY(-8px); } }
+  body.arriving #binoBtn { opacity: 0; pointer-events: none; }
+  body:not(.in-river) #binoBtn, body:not(.in-river) #tip, body:not(.in-river) #panel { display: none !important; }
+
+  #tip {
+    position: fixed; left: 50%; top: 3vh; transform: translateX(-50%);
+    font-size: var(--S); color: #777; background: rgba(255,255,255,.92); padding: 4px 10px;
+    pointer-events: none; white-space: nowrap; transition: opacity .6s; z-index: 9;
+  }
+  body.arriving #tip, body.caught #tip { opacity: 0; }
+
+  #panel {
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: min(760px, 100%); background: #fff; border: 1px solid #000; border-bottom: 0;
+    padding: 24px 20px 28px; text-align: left; display: none;
+    max-height: 70vh; overflow-y: auto; z-index: 11;
+  }
+  #panel .label { font-size: var(--S); color: #777; margin-bottom: 10px; }
+  #panel .fragment { margin-bottom: 16px; }
+  #panel .caught { font-size: var(--M); line-height: 1.5; margin-bottom: 10px; }
+  #panel .own { font-family: "BIZ UDMincho", serif; font-size: var(--M); line-height: 1.5; margin: 6px 0 16px; padding-top: 12px; border-top: 1px solid #eee; }
+  #panel .own:empty { display: none; }
+  #panel .own .who { display: block; font-family: "DotGothic16", monospace; font-size: var(--S); margin-bottom: 4px; }
+  #panel .caught.self { font-family: "BIZ UDMincho", serif; }
+  #panel .caught .th { display: block; }
+  #panel p.who { font-size: var(--S); margin: -4px 0 10px; }
+  #panel .caught { margin-bottom: 12px; }
+  #panel .caught .mine { display: block; font-family: "BIZ UDMincho", serif; margin-top: 8px; }
+  #panel .caught .mine .who { margin: 0 0 2px; }
+  #panel .caught .who { display: block; font-family: "DotGothic16", monospace; font-size: var(--S); margin-top: 2px; }
+  #panel .source { font-family: "BIZ UDMincho", serif; font-size: var(--S); line-height: 1.6; margin-bottom: 20px; border-left: 2px solid #000; padding-left: 12px; }
+  #panel .pill { font-size: var(--S); padding: 12px 26px; margin: 0 8px 8px 0; }
+  /* buttons stay pinned to the bottom of the panel, however long the sentences are */
+  #panel .actions { position: sticky; bottom: -28px; background: #fff; padding: 14px 0 20px; margin-bottom: -28px; border-top: 1px solid #eee; }
+</style>
+</head>
+<body>
+
+<section id="welcome" class="screen on">
+  <h1>Welcome to the River of self!</h1>
+  <div class="current">current River: Pie</div>
+  <p class="note">before visiting the River, please answer the following question to ensure the best River spot tailored for you.</p>
+  <button class="pill" id="begin">begin the journey</button>
+</section>
+
+<section id="question" class="screen">
+  <div class="num">(1)</div>
+  <h2>Since when have you become aware of the River “Pie”?</h2>
+  <div class="field">
+    <div class="choices" id="choices"></div>
+    <div class="hint">choose the part of Pie’s life when you first met her</div>
+  </div>
+</section>
+
+<section id="guide" class="screen">
+  <!-- stops are laid out right-to-left: the boat travels left -->
+  <div id="pano">
+    <div class="stop" id="stop3"></div>
+    <div class="stop" id="stop2"></div>
+    <div class="stop" id="stop1"></div>
+  </div>
+  <div class="say" id="say"></div>
+  <div class="next" id="next"></div>
+</section>
+
+<section id="river" class="screen">
+  <div id="world">
+    <svg id="land" viewBox="0 0 1440 1024" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"></svg>
+    <canvas id="water"></canvas>
+  </div>
+  <svg id="rings" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#000">
+    <circle id="ringL" r="0"/><circle id="ringR" r="0"/>
+  </svg>
+
+</section>
+
+<!-- the edge of your boat -->
+<div id="boat">
+  <svg viewBox="0 0 1440 260" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M 1460 270 L 1460 120 C 1180 104, 820 108, 480 132 C 330 142, 220 160, 120 190 C 70 205, 30 222, -20 245 L -20 270 Z" fill="#000"/>
+    <path d="M 1460 150 C 1180 136, 820 140, 490 162 C 340 172, 230 188, 140 214" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    <rect x="980" y="104" width="46" height="18" rx="6" fill="#000"/>
+    <path d="M 1003 104 C 1040 70, 1110 70, 1150 112" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<!-- river controls: outside the river screen so they sit above the boat -->
+<button id="moveBtn">↺ another part of the River</button>
+<div id="sheet">
+  <div class="label">sail to another part of the River:</div>
+  <div class="choices" id="sheetChoices"></div>
+  <button class="close" id="sheetClose">stay here</button>
+</div>
+  <button id="binoBtn" aria-label="pick up the binoculars">
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <rect x="30" y="18" width="20" height="30" rx="8" fill="#000"/>
+      <rect x="70" y="18" width="20" height="30" rx="8" fill="#000"/>
+      <path d="M 26 40 L 52 40 L 60 56 L 68 40 L 94 40 L 108 78 L 66 78 L 60 66 L 54 78 L 12 78 Z" fill="#000"/>
+      <circle cx="34" cy="80" r="24" fill="#000"/><circle cx="86" cy="80" r="24" fill="#000"/>
+      <circle cx="34" cy="80" r="13" fill="#fff"/><circle cx="86" cy="80" r="13" fill="#fff"/>
+    </svg>
+  </button>
+  <div id="tip"></div>
+
+  <div id="panel">
+    <div class="label">to you, right now:</div>
+    <div class="fragment" id="fragment"></div>
+    <div class="own" id="own"></div>
+    <p class="source" id="quote"></p>
+    <div class="actions">
+      <button class="pill" id="letgo">Let go</button>
+      <button class="pill ghost" id="restart">Visit another part of the River</button>
+    </div>
+  </div>
+
+<script>
+/* =========================================================
+   1. THE RIVER TEXT
+   Each passage has the year it starts. A visitor enters the
+   river at the passage for the year they typed, and never sees
+   what came before it.
+   The years are PLACEHOLDERS: change them to your real ones.
+   ========================================================= */
+const PASSAGES = [
+  /* Labels go in square brackets: [label] or [Thai label|English translation].
+     On the River they read as "label, translation"; the binoculars catch them as labels.
+     Sentences with "I" are Pie's own words about herself; the binoculars show them as quotes. */
+
+  // ---- 2007–2012 · little, in Buriram ----
+  { year: 2007, text: "Pie is [น่ารัก|cute]. She is [จิ้มลิ้ม|sweet-faced]. She is [น่าเอ็นดู|endearing]. She has [ไว้หน้าม้าเต่อ|short blunt bangs]. She is [ร่าเริง|cheerful]. She is [เรียบร้อย|well-behaved]. She is [quiet]. She is [ขี้อาย|shy]. She is [ขี้แย|a crybaby]. She is [ขี้งอน|sulky]. Some say she is [ขี้อิจฉา|jealous]. She is still [เด็กน้อย|a little kid]. She is [ชอบให้กอด|someone who loves hugs]. She is always [ชอบอ้อนปาป๊า|sweet-talking her papa]. She is [ชอบสีชมพู|a pink lover]." },
+  { year: 2009, text: "Pie is [วาดรูปเก่ง|good at drawing]. She is [ศิลปินตัวน้อย|a little artist]. She is [สร้างสรรค์|creative]. She is [ชอบวาดรูป|always drawing]. She is [ชอบอ่านหนังสือ|always reading]. She is [ชอบเรียน|in love with school]. She is [เขียนหนังสือสวย|the one with neat handwriting]. She is [ฉลาด|smart]. She is [เก่ง|capable]. She is [อยากรู้อยากเห็น|curious]. She is [ช่างสังเกต|observant]. She is [ชอบถาม|full of questions]. She is [ชอบทำหน้างง|always making a puzzled face]. She is [ชอบคิดเชื่อมโยง|always connecting ideas]. Some call her [Reuters]." },
+  { year: 2011, text: "Pie is [เด็กกิจกรรม|the activities kid]. She wins [หนูน้อยกาชาด|Little Miss Red Cross], a kids’ pageant. In Buriram, she is [ลูกคุณหนู|the pampered little miss]. She is [ลูกคนรวย|the rich kid]. Some say she is [spoiled]." },
+  { year: 2012, text: "Back then, I thought I was [cute]. I thought I was [adorable]. I was [artistic]. I was [creative]. I was [brave]. I was [explorative]. I was [adventurous]." },
+
+  // ---- 2013–2018 · school years in Buriram ----
+  { year: 2013, text: "Pie is [top of the class]. She is [ฉลาด|smart]. She is [เก่ง|capable]. She is [ขยัน|hardworking]. She is [เก่งภาษาอังกฤษ|good at English]. She is [วาดรูปเก่ง|good at drawing]. She is [นักเรียนทุน|a scholarship student]. She is [เด็กล่ารางวัล|an award hunter]. She is [เด็กกิจกรรม|the activities kid]. She is [เรียนเยอะ|always studying]. She is [มุ่งมั่น|determined]. She is [ชอบการแข่งขัน|competitive]. She is [มีความรับผิดชอบสูง|very responsible]. She is [ตั้งใจทำการบ้าน|serious about homework]. She is [หัวการค้า|a born businesswoman], always running a [little business] selling things at school." },
+  { year: 2015, text: "Pie is [ตลก|funny]. She is [โก๊ะ|goofy]. She is [ขี้แกล้ง|a tease]. She is [ใจดี|kind]. She is [มีน้ำใจ|generous]. Some say she is [ขี้งก|stingy]. She is [เป็นคนรักเพื่อน|loyal to her friends]. She is [ชอบเลี้ยงของเพื่อนในวันเกิด|the one who treats everyone on their birthday]. She is [ช่างสังเกต|observant]. She is [ชอบสืบ|a little detective], always [ชอบสังเกตสถานการณ์รอบข้าง|reading the room]. She is [เงียบ|quiet]. She is [พูดน้อย|a girl of few words]. She is [คิดมาก|an overthinker]. Sometimes she feels [left out by her friends]. She is [ขี้งอน|sulky]. Some say she is [เอาแต่ใจ|spoiled]. Some say she is [ขี้เกียจ|lazy]. Some say she is [กระแดะ|pretentious]. To some, she is [เป็นที่มั่นไส้|annoying]." },
+  { year: 2017, text: "Pie is still [ลูกคุณหนู|the pampered little miss]. She is still [ลูกคนรวย|the rich kid]. She is the girl whose [แม่ขับเบนซ์|mom drives a Benz]. She is [the beloved youngest] of her siblings, [lonely] since her brother moved away for school. She is [loved by her teachers] and by her friends’ parents. She is [loved by her elder relatives], and by her nanny. She is [พูดเพราะ|sweet-spoken]. She is [ไหว้สวย|graceful when she bows]. She is [มีมารยาท|well-mannered]. She is [แต่งตัวแหวกแนว|an unusual dresser]. She is [stylish]. She is [trendy]. She is a [YouTuber]. She is [a squishy collector]. She is [ชอบดนตรี|a music lover]. She is [ชอบเต้น|a dancer]. She is [มีแก้ม|chubby-cheeked]. She has [ผมดำหนา|thick black hair]. She has [ฟันเหยิน|buck teeth]. Some say she is [อ้วน|chubby]. Some say she is [ผอม|thin]. She is [น่ารัก|cute]. She is [น่าเอ็นดู|endearing]." },
+  { year: 2018, text: "Back then, I thought I was [lively]. I was [sometimes spoiled]. I was [highly responsible] when it came to school. I was [a kid]. I was [smart]. I was [kind and caring]. I was [funny]. I was [carefree]." },
+
+  // ---- 2019–2023 · high school in Bangkok ----
+  { year: 2019, text: "Pie is [the new girl from a Thai school]. She is [the new student in Byron]. She is [a Byronite]. She is [shy]. She [doesn’t talk much]. She is [not confident]. Some ask, [who is she?] She is [an introvert]. She is [curious]. She is [smart]. She is [funny]. She is in a new friend group, then another. She is [the one who changes her hair colour often]. She is [ผมเสีย|the one with damaged hair]. She is [indie]. She is [tall]. Some say she is [chubby]. Some say she is [thinner]." },
+  { year: 2020, text: "Pie is [a sixth former]. She is a [roon p|senior]. She is the [Media Captain] of her house. She is [good at editing]. She is a [dedicated music video director]. She is [creative]. She is [artistic]. She is [ติส|artsy]. She is [ขยัน|hardworking]. She is [a workaholic]. She is [always at tutoring]. She is [busy]. She is [responsible]. She is [reliable]. She is [เป็นเด็กลายมือสวย|the one with beautiful handwriting]. She is [มุ่งมั่นเพื่อที่จะพัฒนาตัวเอง|determined to improve herself]." },
+  { year: 2021, text: "Pie is [someone’s girlfriend]. She is [the best girlfriend]. She is [romantic]. She [takes good care of others]. She is [too much]. Some say she is a [hypocrite]. She is [คิดมาก|an overthinker]. She is [too serious]. She is [ขี้งอน|sulky]. She is [ขี้น้อยใจ|easily hurt]. She is [anxious]. She [cries a lot]. She is [not confident] speaking up for herself. She is [humble]. She [thinks she isn’t good enough]. She is a [bad texter]. Some say she is [pretty]. Some say she [looks so-so]. Some say she is [not as pretty as other girls]. She [teaches her mom] that sometimes you just need someone to listen." },
+  { year: 2022, text: "Pie [receives an award] when she graduates. Then she is [in a transitional phase]: a new school, new friends, everything to learn again. She is [living alone for the first time]. She is [living in a dorm for the first time]. She is [independent]. I felt [insecure]. I was [not myself]. I was [hardworking]. I was [too in my head]. I was [changing]. I was [romantic]. I was [lonely]." },
+
+  // ---- 2023–now · college in New York ----
+  { year: 2023, text: "Pie is [the Thai girl]. She is [a Thai student]. She is [เด็กทุน|the scholarship kid]. She is [เด็กเมกา|the American kid] to people back home. She is [an art student]. She is [a communication design student]. She is [a first year], then [a second year]. She is [a New Yorker]. She is [a homebody]. She is [a fast learner]. She is [adaptive]. She is [independent]. She is [กำลังค้นหาตัวเอง|still finding herself]." },
+  { year: 2024, text: "Pie is [an extrovert]. She is [an introvert]. She is [an ambivert]. She is [funny]. She is [bubbly]. She is [cute]. She is [adorable]. She is [kind]. She is [caring]. Some say she is [rude]. Some say she [disappeared]. She is a [bad texter]. She is [anxious]. She [thinks too much]. She is [sleep deprived]. She has [a commercial look]. Some say she [looks like Lisa]. She [changed her name]." },
+  { year: 2025, text: "Pie is [artistic] and [creative]. Some people asked her how she came up with all of these [weird and silly] ideas. Some people don’t even know who she is or what her works look like. Some people recognise her from her photography. Some people thought she’s [a fashion designer], mistaking it from fashion Back Stage photos she posted. You’d see her being [the photographer] at most events you go that you associate her as mostly doing photography. You wouldn’t notice that she also does book designs, sometimes ux/ui design or graphic design, though you might think she is not as good because she doesn’t promote much of her work as much as her photography. So your perception of Pie at this moment is different. She is [a great photographer]. She is [a graphic designer]. She is [a CD Print tutor]. She is [a critical thinker]. She is [a conceptual thinker]. She is [reasonable]. She is [spiritual]. She is [ลึกซึ้ง|deep]. She is [ขวนขวาย|resourceful]. She is [ทำทุกอย่างอย่างสุดแรง|someone who gives everything her all]. She is [เป็นที่เอ็นดูของผู้ใหญ่|adored by her elders]. She is [great]." },
+  { year: 2026, text: "Pie is a [senior]. She is a [thesis student], making a river out of everything she has been called. Right now, I am [in an existential crisis]. I am [more confident]. I am [unstable]. I am [more like myself]. I am [explorative]. I am [lonely]." },
+];
+
+/* Lines shown after each look through the binoculars: Pie's exact words. They take turns.
+   Leave the list empty ( const QUOTES = []; ) to show no quote at all. */
+const QUOTES = [
+  "writing a biography isn't describing a whole person; it's choosing what to focus on.",
+  "the problem isn't that labels exist. It's what happens when a selection gets treated as the whole person, and when a frame that was true at one moment gets frozen.",
+  "labels are evidence of existence",
+];
+
+/* =========================================================
+   2. THE GUIDE — {chapter} becomes the part of the River the visitor chose.
+   ========================================================= */
+const GUIDE = [
+  { say: ": The River of Self is accumulated and curated through period of time since the existence of self." },
+  { say: ": This is a constant overflowing river that never stop at one spot, not until it reaches the end of self." },
+  { say: ": Now, we have reached your perfect spot of the River! Enjoy the view!!", sub: "your spot: {chapter}" },
+];
+
+/* =========================================================
+   3. PARTS OF THE RIVER — the visitor picks the part of Pie's life
+   when they met her, and sees only the passages from those years.
+   ========================================================= */
+const CHAPTERS = [
+  { name: "when she was little, in Buriram", from: 2007, to: 2012, show: "2007–2012" },
+  { name: "school years in Buriram",          from: 2013, to: 2018, show: "2013–2018" },
+  { name: "high school in Bangkok",           from: 2019, to: 2022, show: "2019–2023" },
+  { name: "college in New York",              from: 2023, to: 2026, show: "2023–now" },
+];
+const yrs = c => c.show;
+
+/* =========================================================
+   4. VISITORS' WORDS
+   Paste your Google Apps Script web-app link here (see apps-script.gs).
+   Words visitors leave are saved to your Google Sheet; only rows you tick
+   "approved" flow into the River, and never for the person who wrote them.
+   ========================================================= */
+const SHEET_URL = "";
+let visitorWords = []; // [{ chapter, word }]
+if (SHEET_URL) {
+  fetch(SHEET_URL).then(r => r.json()).then(rows => {
+    visitorWords = (rows || []).filter(r => r && r.word).map(r => ({ chapter: +r.chapter || 0, word: String(r.word).replace(/[\[\]|]/g, "").slice(0, 40) }));
+  }).catch(() => {});
+}
+
+/* How a Thai label becomes a Thai sentence in the binoculars panel.
+   - describing words (adjectives):  พายเป็นคนที่ + label   e.g. พายเป็นคนที่ขี้อาย
+   - action words (verbs):           พาย + label           e.g. พายชอบวาดรูป
+   - nouns (what she *is*):          พายเป็น + label       e.g. พายเป็นลูกคุณหนู
+   - labels already starting with เป็น: พาย + label
+   Anything that doesn't fit goes in THAI_SENTENCE as a whole sentence. */
+const THAI_VERB_START = ["ชอบ", "วาด", "เขียน", "ไว้", "ทำ", "กำลัง", "ตั้งใจ", "เรียน", "มี", "คิด", "พูด", "ไหว้", "แต่งตัว", "ผม", "ฟัน"];
+const THAI_NOUNS = ["ลูกคุณหนู", "ลูกคนรวย", "เด็กน้อย", "เด็กกิจกรรม", "ศิลปินตัวน้อย", "นักเรียนทุน", "เด็กล่ารางวัล", "เด็กทุน", "เด็กเมกา"];
+const THAI_SENTENCE = {
+  "แม่ขับเบนซ์": "แม่ของพายขับเบนซ์",
+  "หนูน้อยกาชาด": "พายได้รางวัลหนูน้อยกาชาด",
+  "หัวการค้า": "พายเป็นคนหัวการค้า",
+};
+function thaiLine(name) {
+  if (THAI_SENTENCE[name]) return THAI_SENTENCE[name];
+  if (name.startsWith("เป็น")) return "พาย" + name;
+  if (THAI_NOUNS.includes(name)) return "พายเป็น" + name;
+  if (THAI_VERB_START.some(v => name.startsWith(v))) return "พาย" + name;
+  return "พายเป็นคนที่" + name;
+}
+const isThai = t => /[\u0E00-\u0E7F]/.test(t);
+
+/* ---------- vector illustrations ---------- */
+const tuft = (x, y, s = 1) =>
+  `<path d="M ${x} ${y} l ${6*s} ${-20*s} l ${6*s} ${20*s} l ${7*s} ${-14*s} l ${6*s} ${14*s}" fill="none" stroke="#000" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>`;
+const tree = (x, y, s = 1) =>
+  `<g class="sway"><path d="M ${x} ${y} v ${-46*s}" stroke="#000" stroke-width="${5*s}" stroke-linecap="round"/><ellipse cx="${x}" cy="${y-62*s}" rx="${22*s}" ry="${28*s}" fill="#000"/></g>`;
+const ripples = (rows) => `<g class="ticks" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round">${rows.map(([x, y, w]) => `<path d="M ${x} ${y} q ${w/2} ${-w/4} ${w} 0"/>`).join("")}</g>`;
+const SHORE_Y = 600;
+// the shore you pass, and the water between you and it
+const shore = () => `
+  <path d="M -20 ${SHORE_Y} C 300 ${SHORE_Y-8}, 800 ${SHORE_Y+8}, 1460 ${SHORE_Y-4}" fill="none" stroke="#000" stroke-width="4"/>
+  ${ripples([[120,680,50],[420,720,60],[760,690,46],[1080,740,64],[1300,700,40],[260,800,70],[640,820,56],[980,790,50],[1240,830,60]])}`;
+
+const STOPS = {
+  // stop 1: a person pouring water onto the ground
+  stop1: () => `
+    ${shore()}
+    ${tree(130, SHORE_Y, 1.1)}${tree(1290, SHORE_Y, .9)}${tree(1360, SHORE_Y, 1.2)}
+    <g transform="translate(274 90) scale(.62)">
+      ${tuft(240, 822)}${tuft(380, 822, .8)}${tuft(1040, 822)}
+      <rect x="528" y="700" width="26" height="122" rx="10" fill="#000"/>
+      <rect x="566" y="700" width="26" height="122" rx="10" fill="#000"/>
+      <ellipse cx="546" cy="820" rx="24" ry="9" fill="#000"/>
+      <ellipse cx="586" cy="820" rx="24" ry="9" fill="#000"/>
+      <rect x="500" y="582" width="24" height="112" rx="12" fill="#000"/>
+      <rect x="512" y="558" width="98" height="164" rx="36" fill="#000"/>
+      <circle cx="562" cy="510" r="46" fill="#fff" stroke="#000" stroke-width="5"/>
+      <path d="M 516 508 A 46 46 0 0 1 608 504 C 592 488, 548 486, 516 508 Z" fill="#000"/>
+      <circle cx="590" cy="516" r="5" fill="#000"/>
+      <path d="M 580 538 Q 592 544 602 536" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+      <path d="M 594 592 C 632 612, 664 628, 694 630" fill="none" stroke="#000" stroke-width="24" stroke-linecap="round"/>
+      <g transform="rotate(32 725 630)">
+        <path d="M 692 606 C 668 612, 668 652, 692 658" fill="none" stroke="#000" stroke-width="9" stroke-linecap="round"/>
+        <rect x="690" y="586" width="72" height="86" rx="18" fill="#000"/>
+        <path d="M 760 598 L 794 584 L 762 622 Z" fill="#000"/>
+        <rect x="702" y="622" width="48" height="9" rx="4" fill="#fff"/>
+      </g>
+      <g fill="none" stroke="#000" stroke-width="5" stroke-linecap="round">
+        <path class="flowdash" d="M 800 628 C 828 652, 842 722, 840 812"/>
+        <path class="flowdash" style="animation-delay:-.4s" d="M 812 630 C 842 660, 856 724, 856 812"/>
+        <path class="flowdash" style="animation-delay:-.8s" d="M 790 634 C 812 664, 824 730, 824 812"/>
+      </g>
+      <ellipse class="grow" cx="852" cy="826" rx="130" ry="15" fill="#000" style="animation-delay:.6s"/>
+      <circle class="drop" cx="900" cy="800" r="6" fill="#000" style="animation-delay:.2s"/>
+    </g>`,
+
+  // stop 2: water from everywhere gathering into one river
+  stop2: () => `
+    ${shore()}
+    <g transform="translate(274 32) scale(.62)">
+      <path d="M 100 640 C 240 520, 380 520, 520 612 C 600 566, 680 548, 760 604 C 860 520, 1000 506, 1120 604 C 1200 562, 1280 570, 1340 626" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round"/>
+      ${tuft(170, 620, .8)}${tuft(980, 540, .8)}${tuft(1260, 600, .8)}
+      <g fill="#000">
+        <circle class="drop" cx="320" cy="470" r="7"/>
+        <circle class="drop" cx="610" cy="420" r="7" style="animation-delay:.5s"/>
+        <circle class="drop" cx="880" cy="440" r="7" style="animation-delay:1s"/>
+        <circle class="drop" cx="1110" cy="460" r="7" style="animation-delay:.3s"/>
+        <circle class="drop" cx="470" cy="400" r="6" style="animation-delay:1.3s"/>
+      </g>
+      <g fill="none" stroke-linecap="round">
+        <path d="M 300 604 C 360 700, 560 760, 690 868" stroke="#000" stroke-width="18"/>
+        <path d="M 760 612 C 740 700, 740 790, 720 868" stroke="#000" stroke-width="18"/>
+        <path d="M 1150 612 C 1080 720, 880 790, 750 868" stroke="#000" stroke-width="18"/>
+        <path class="flowdash" d="M 300 604 C 360 700, 560 760, 690 868" stroke="#fff" stroke-width="4"/>
+        <path class="flowdash" d="M 760 612 C 740 700, 740 790, 720 868" stroke="#fff" stroke-width="4"/>
+        <path class="flowdash" d="M 1150 612 C 1080 720, 880 790, 750 868" stroke="#fff" stroke-width="4"/>
+      </g>
+      <ellipse class="grow" cx="720" cy="888" rx="330" ry="52" fill="#000" style="animation-delay:.4s"/>
+    </g>
+    ${tree(80, SHORE_Y, 1)}${tree(1380, SHORE_Y, 1.1)}`,
+
+  // stop 3: open river ahead, seen at a slant from the boat
+  stop3: () => river3(true),
+};
+
+function river3(withTicks) {
+  return `
+    <path class="horizon" d="M -20 352 L 1460 322" stroke="#000" stroke-width="3"/>
+    <path d="M 120 352 C 160 320, 220 318, 260 346 C 300 326, 360 328, 400 344" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+    ${tree(560, 346, .55)}${tree(600, 345, .45)}${tree(1010, 334, .5)}
+    <path d="M -20 560 C 200 470, 420 400, 640 350" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 1460 452 C 1260 400, 1060 360, 900 336" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+    ${tuft(60, 520)}${tuft(1340, 440, .9)}${tuft(300, 440, .7)}
+    <g fill="none" stroke="#000" stroke-width="5" stroke-linecap="round">
+      <circle cx="1160" cy="190" r="44"/>
+      <path d="M 1160 120 v -22 M 1160 260 v 22 M 1090 190 h -22 M 1230 190 h 22 M 1110 140 l -16 -16 M 1210 140 l 16 -16 M 1110 240 l -16 16 M 1210 240 l 16 16"/>
+    </g>
+    <path d="M 300 150 l 14 10 l 14 -10 M 360 120 l 10 7 l 10 -7" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round"/>
+    ${withTicks ? ripples([[700,380,24],[820,400,30],[560,420,34],[960,430,36],[400,500,44],[760,480,46],[1100,500,50],[240,620,60],[620,600,62],[1000,620,64],[1300,600,56],[420,740,74],[860,760,80],[1220,760,70]]) : ""}`;
+}
+
+/* ---------- screens ---------- */
+const $ = id => document.getElementById(id);
+const isOn = id => $(id).classList.contains("on");
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("on"));
+  $(id).classList.add("on");
+  $("boat").classList.toggle("on", id === "guide" || id === "river");
+  document.body.classList.toggle("in-river", id === "river");
+}
+
+let chapter = 0;
+
+function chapterButtons(host, onPick, current) {
+  host.innerHTML = "";
+  CHAPTERS.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.className = "chapter" + (i === current ? " here" : "");
+    b.innerHTML = `<span>${i + 1}. ${c.name}</span><span class="yrs">${i === current ? "you are here" : yrs(c)}</span>`;
+    if (i !== current) b.addEventListener("click", () => onPick(i));
+    host.appendChild(b);
+  });
+}
+chapterButtons($("choices"), i => { chapter = i; startGuide(); });
+
+function goToQuestion() {
+  show("question");
+  setTimeout(() => $("choices").querySelector("button").focus(), 400);
+}
+
+/* guide: the boat glides left from stop to stop */
+let guideIndex = 0, guideBusy = false;
+const pano = $("pano");
+["stop1", "stop2", "stop3"].forEach(id => {
+  $(id).innerHTML = `<svg viewBox="0 0 1440 1024" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${STOPS[id]()}</svg>`;
+});
+function panTo(i, instant) {
+  // stop1 is the right-most panel; moving to the next stop slides the world to the right
+  pano.style.transition = instant ? "none" : "";
+  pano.style.transform = `translateX(${-(2 - i) * 100}vw)`;
+  if (instant) { void pano.offsetWidth; pano.style.transition = ""; }
+}
+function sayGuide() {
+  const g = GUIDE[guideIndex];
+  $("say").innerHTML = g.say + (g.sub ? `<span class="sub">${g.sub.replace("{chapter}", `${CHAPTERS[chapter].name}, ${yrs(CHAPTERS[chapter])}`)}</span>` : "");
+  $("next").textContent = guideIndex === GUIDE.length - 1 ? "click or press enter to look closer →" : "click or press enter to sail on →";
+}
+function startGuide() {
+  guideIndex = 0;
+  $("guide").classList.remove("moving", "zoom");
+  panTo(0, true);
+  sayGuide();
+  show("guide");
+}
+function nextGuide() {
+  if (guideBusy) return;
+  guideBusy = true;
+  if (guideIndex === GUIDE.length - 1) {
+    // the guide's words fade, and you lean in toward the river
+    $("guide").classList.add("zoom");
+    setTimeout(() => { enterRiver(chapter); guideBusy = false; }, 1700);
+    return;
+  }
+  $("guide").classList.add("moving");
+  guideIndex++;
+  panTo(guideIndex);
+  setTimeout(() => {
+    sayGuide();
+    $("guide").classList.remove("moving");
+    guideBusy = false;
+  }, 2600);
+}
+
+$("begin").addEventListener("click", goToQuestion);
+$("guide").addEventListener("click", nextGuide);
+// Enter is handled directly (not as a form submit), because some preview windows block forms.
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && looking && running) { putDown(); return; }
+  if (isOn("question") && /^[1-9]$/.test(e.key) && CHAPTERS[+e.key - 1]) { chapter = +e.key - 1; startGuide(); return; }
+  if (e.key !== "Enter") return;
+  if (isOn("welcome")) { e.preventDefault(); goToQuestion(); }
+  else if (isOn("guide")) { e.preventDefault(); nextGuide(); }
+});
+
+/* ---------- river ---------- */
+const panel = $("panel"), riverScreen = $("river"), canvas = $("water"), ctx = canvas.getContext("2d");
+let running = false, ready = false, looking = false, last = 0;
+const rc = {
+  add: (...c) => { riverScreen.classList.add(...c); document.body.classList.add(...c); },
+  remove: (...c) => { riverScreen.classList.remove(...c); document.body.classList.remove(...c); },
+};
+let lens = { x: innerWidth / 2, y: innerHeight / 2, r: 180 };
+
+$("land").innerHTML = river3(false);
+
+function setTip() {
+  $("tip").textContent = looking
+    ? "look around · click to focus on what you see · esc to put them down"
+    : "the River is too far to read · click anywhere to look through your binoculars";
+}
+
+/* --- the story, split into drawable pieces (grapheme clusters keep Thai marks with their letters) --- */
+const FONT = '"DotGothic16","Noto Sans Thai",monospace';
+let glyphs = [];   // { ch, w, word, sentence }
+let wordText = [], sentenceWords = [];
+const seg = (typeof Intl !== "undefined" && Intl.Segmenter) ? new Intl.Segmenter(undefined, { granularity: "grapheme" }) : null;
+function clusters(str) { return seg ? Array.from(seg.segment(str), x => x.segment) : Array.from(str); }
+
+function buildStory(ch, only) {
+  // only the passages from the part of Pie's life when the visitor met her
+  const c = CHAPTERS[ch];
+  const seen = only ? only.map(p => ({ ...p })) : PASSAGES.filter(p => p.year >= c.from && p.year <= c.to).map(p => ({ ...p }));
+  // words left by earlier visitors who met Pie in this part of her life, spread through the River
+  if (!only) visitorWords.filter(v => v.chapter === ch).slice(-40).forEach((v, k, all) => {
+    const at = Math.floor(((k + 1) / (all.length + 1)) * seen.length);
+    seen.splice(at + k, 0, { visitor: true, text: `Someone who visited says she is [${v.word}].` });
+  });
+  // turn [label|translation] tags into plain text, remembering where each label sits
+  let story = "", spans = [];
+  seen.forEach(p => {
+    const re = /\[([^\]|]+)(?:\|([^\]]+))?\]/g; let lastI = 0, m;
+    while ((m = re.exec(p.text))) {
+      story += p.text.slice(lastI, m.index);
+      const start = story.length;
+      story += m[2] ? `${m[1]}, ${m[2]}` : m[1];
+      // is this label in one of Pie's own "I" sentences?
+      const sStart = Math.max(p.text.lastIndexOf(". ", m.index), p.text.lastIndexOf("? ", m.index), -1);
+      const sEnd = p.text.indexOf(".", re.lastIndex);
+      const self = /\bI\b/.test(p.text.slice(sStart + 1, sEnd < 0 ? undefined : sEnd));
+      spans.push({ start, end: story.length, name: m[1], gloss: m[2] || "", self, visitor: !!p.visitor, key: m[1] + (self ? "|self" : p.visitor ? "|visitor" : "") });
+      lastI = re.lastIndex;
+    }
+    story += p.text.slice(lastI) + "   ";
+  });
+  labels = spans;
+  ctx.font = `100px ${FONT}`;
+  glyphs = []; wordText = []; sentenceWords = []; sentenceText = [];
+  let at = 0, si = 0;
+  let word = -1, sentence = 0, inWord = false;
+  const widths = {};
+  for (const ch of clusters(story)) {
+    const space = /\s/.test(ch);
+    if (!space && !inWord) { word++; wordText[word] = ""; (sentenceWords[sentence] ||= []).push(word); }
+    inWord = !space;
+    if (!space) wordText[word] += ch;
+    if (!(ch in widths)) widths[ch] = ctx.measureText(ch).width / 100;
+    while (si < spans.length && spans[si].end <= at) si++;
+    const label = (si < spans.length && at >= spans[si].start && at < spans[si].end && !space) ? si : -1;
+    glyphs.push({ ch, w: widths[ch] || 0.5, word: space ? -1 : word, sentence, label });
+    sentenceText[sentence] = (sentenceText[sentence] || "") + ch;
+    at += ch.length;
+    if (/[.!?]/.test(ch)) { sentence++; }
+  }
+  // a word belongs to the sentence it started in
+  wordSentence = [];
+  sentenceWords.forEach((ws, si) => ws.forEach(w => wordSentence[w] = si));
+  if (!only) {
+    ownPool = [];
+    labels.forEach((l, i) => {
+      if (!l.self) return;
+      const gi = glyphs.findIndex(g => g.label === i);
+      const t = gi < 0 ? "" : (sentenceText[glyphs[gi].sentence] || "").trim().replace(/^Back then, |^Right now, /, "");
+      if (t && !ownPool.includes(t)) ownPool.push(t);
+    });
+  }
+}
+let wordSentence = [], labels = [], collected = [], quoteIndex = 0, sentenceText = [];
+
+/* --- camera: you sit low in a boat, looking toward the horizon --- */
+let W, H, DPR, F, horizon = { y: 0, slope: 0 }, path = null;
+const Z0 = 1.9, RATIO = 1.17, NEAR_PX = 32;
+function sizeAt(z) { return NEAR_PX * Z0 / F * Math.pow(z / Z0, 0.55); } // letter size on the water
+function project(x, z) {
+  const sx = W / 2 + F * x / z;
+  const sy = horizon.y + F / z + horizon.slope * (sx - W / 2);
+  return [sx, sy];
+}
+
+function readHorizon() {
+  // match the drawn horizon in the landscape behind the words
+  const h = $("land").querySelector(".horizon");
+  const m = h.getScreenCTM(), a = h.getPointAtLength(0), b = h.getPointAtLength(h.getTotalLength());
+  const A = new DOMPoint(a.x, a.y).matrixTransform(m), B = new DOMPoint(b.x, b.y).matrixTransform(m);
+  // the landscape is scaled by CSS; getScreenCTM includes it
+  horizon.slope = (B.y - A.y) / (B.x - A.x);
+  horizon.y = A.y + horizon.slope * (W / 2 - A.x) + 6;
+}
+
+function buildPath() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(2, devicePixelRatio || 1);
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  readHorizon();
+  F = (H * 0.82 - horizon.y) * Z0;              // nearest row sits just above the boat
+  const xs = [], zs = [];
+  let z = Z0, r = 0;
+  while (z < 70) {
+    const L = 1.15 * (W / 2) * z / F;           // a bit wider than the screen at this depth
+    const ltr = r % 2 === 0, n = 160;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      xs.push((ltr ? -L + 2 * L * t : L - 2 * L * t));
+      zs.push(z * (1 + 0.035 * Math.sin(t * Math.PI * 3 + r)));
+    }
+    z *= RATIO; r++;
+  }
+  const s = [0];
+  for (let i = 1; i < xs.length; i++) s.push(s[i - 1] + Math.hypot(xs[i] - xs[i - 1], zs[i] - zs[i - 1]));
+  path = { xs, zs, s, len: s[s.length - 1] };
+}
+
+/* --- flowing: the first letter on the water, and how far it has drifted --- */
+let head = 0, phase = 0, speedMul = 1, waterAlpha = 1, swap = null;
+const SPEED_U = 0.09; // water speed, in metres per second near the boat
+let frozen = false, flood = null, reveal = 0, locked = false, lastCatch = [];
+function advance(dt) {
+  if (frozen) return;
+  phase += SPEED_U * dt * speedMul;
+  let guard = 0;
+  while (guard++ < 50) {
+    const prev = (head - 1 + glyphs.length) % glyphs.length;
+    const adv = glyphs[prev].w * sizeAt(Z0);
+    if (phase < adv) break;
+    phase -= adv; head = prev;
+  }
+}
+
+let frame = []; // what was drawn this frame: { X, Y, a, px, g }
+function layout() { frame = layoutFor(glyphs, head, phase); }
+function layoutFor(gl, head, phase) {
+  const frame = [];
+  const { xs, zs, s, len } = path;
+  let pos = phase, i = 0, k = head, count = 0;
+  while (pos < len && count < 9000) {
+    while (i < s.length - 2 && s[i + 1] < pos) i++;
+    const t = (pos - s[i]) / ((s[i + 1] - s[i]) || 1);
+    const x = xs[i] + (xs[i + 1] - xs[i]) * t, z = zs[i] + (zs[i + 1] - zs[i]) * t;
+    const g = gl[k], size = sizeAt(z);
+    const [X, Y] = project(x, z);
+    const px = size * F / z;
+    if (X > -60 && X < W + 60 && px > 2) {
+      const [X2, Y2] = project(xs[i + 1], zs[i + 1]);
+      const [X1, Y1] = project(xs[i], zs[i]);
+      frame.push({ X, Y, a: Math.atan2(Y2 - Y1, X2 - X1), px, g, adv: g.w * px });
+    }
+    pos += g.w * size;
+    k = (k + 1) % gl.length;
+    count++;
+  }
+  return frame;
+}
+
+/* a plain run of text as drawable pieces (used for the flood) */
+function makeGlyphs(str) {
+  ctx.font = `100px ${FONT}`;
+  const out = [], widths = {};
+  for (const ch of clusters(str)) {
+    if (!(ch in widths)) widths[ch] = ctx.measureText(ch).width / 100;
+    out.push({ ch, w: widths[ch] || 0.5, word: /\s/.test(ch) ? -1 : 0, label: -1 });
+  }
+  return out;
+}
+
+function lensCenters() {
+  const dx = lens.r * 0.95, inner = lens.r * 0.92;
+  return [[lens.x - dx, lens.y, inner], [lens.x + dx, lens.y, inner]];
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const fadeTop = horizon.y + 10, fadeLen = H * 0.18;
+  // far away: letters blur into strokes of ink you can't read
+  // after letting go: the River you knew is replaced, from where you looked outward,
+  // by a River made only of what you caught
+  let R = -1;
+  if (flood) {
+    const u = Math.min(1, (performance.now() - flood.t0) / 1800);
+    R = u * u * (3 - 2 * u) * Math.hypot(W, H) * 1.1;
+    flood.u = u;
+    ctx.fillStyle = "#000";
+    for (const f of flood.old) {
+      if (f.g.word < 0 || Math.hypot(f.X - flood.cx, f.Y - flood.cy) < R) continue;
+      const fade = Math.max(0, Math.min(1, (f.Y - fadeTop) / fadeLen));
+      ctx.globalAlpha = 0.16 * fade;
+      ctx.fillRect(f.X, f.Y - f.px * 0.42, f.adv * 0.92, f.px * 0.38);
+    }
+  }
+  ctx.fillStyle = "#000";
+  for (const f of frame) {
+    if (f.g.word < 0) continue;
+    if (flood && Math.hypot(f.X - flood.cx, f.Y - flood.cy) > R) continue;
+    const fade = Math.max(0, Math.min(1, (f.Y - fadeTop) / fadeLen));
+    ctx.globalAlpha = 0.16 * fade * waterAlpha;
+    ctx.fillRect(f.X, f.Y - f.px * 0.42, f.adv * 0.92, f.px * 0.38);
+  }
+  // the new River is readable for a moment, then drifts out of reach like the rest
+  const show = flood ? 1 : reveal;
+  if (show > 0) {
+    ctx.textBaseline = "alphabetic";
+    for (const f of frame) {
+      if (f.g.word < 0) continue;
+      if (flood && Math.hypot(f.X - flood.cx, f.Y - flood.cy) > R) continue;
+      const fade = Math.max(0, Math.min(1, (f.Y - fadeTop) / (fadeLen * 0.6)));
+      ctx.globalAlpha = fade * show;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.translate(f.X, f.Y); ctx.rotate(f.a);
+      ctx.font = `${f.px.toFixed(1)}px ${FONT}`;
+      ctx.fillText(f.g.ch, 0, 0);
+    }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  ctx.globalAlpha = 1;
+  if (!looking) return;
+  // through the lenses: the same water, sharp
+  const cs = lensCenters();
+  ctx.save();
+  ctx.beginPath();
+  cs.forEach(([x, y, r]) => { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); });
+  ctx.fillStyle = "#fff"; ctx.fill(); ctx.clip();
+  ctx.fillStyle = "#000"; ctx.textBaseline = "alphabetic";
+  for (const f of frame) {
+    if (f.g.word < 0) continue;
+    if (!cs.some(([x, y, r]) => Math.abs(f.X - x) < r + f.px && Math.abs(f.Y - y) < r + f.px)) continue;
+    const fade = Math.max(0, Math.min(1, (f.Y - fadeTop) / (fadeLen * 0.5)));
+    ctx.globalAlpha = fade * waterAlpha;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.translate(f.X, f.Y); ctx.rotate(f.a);
+    ctx.font = `${f.px.toFixed(1)}px ${FONT}`;
+    ctx.fillText(f.g.ch, 0, 0);
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function tick(t) {
+  if (!running) return;
+  const dt = last ? Math.min((t - last) / 1000, 0.1) : 0;
+  last = t;
+  if (swap) stepSwap(t);
+  advance(dt);
+  layout();
+  draw();
+  if (flood && flood.u >= 1) { flood = null; frozen = false; reveal = 1; }
+  if (!flood && reveal > 0) reveal = Math.max(0, reveal - dt / 3);
+  requestAnimationFrame(tick);
+}
+function startFlow() { if (!running) { running = true; last = 0; requestAnimationFrame(tick); } }
+
+function placeLens(x, y) {
+  lens.x = x; lens.y = y;
+  const ring = lens.r * 0.16, dx = lens.r * 0.95;
+  [["ringL", x - dx], ["ringR", x + dx]].forEach(([id, cx]) => {
+    $(id).setAttribute("cx", cx); $(id).setAttribute("cy", y);
+    $(id).setAttribute("r", lens.r); $(id).setAttribute("stroke-width", ring);
+  });
+  if (!running && path) draw();
+}
+function sizeLens() { lens.r = Math.min(innerWidth * 0.17, innerHeight * 0.27); }
+
+function pickUp() {
+  if (!ready) return;
+  looking = true;
+  rc.add("looking");
+  $("binoBtn").classList.remove("call");
+  placeLens(lens.x, lens.y);
+  setTip();
+}
+function putDown() {
+  looking = false;
+  rc.remove("looking", "caught");
+  panel.style.display = "none";
+  startFlow();
+  setTip();
+}
+
+/* moving to another part of the River without the guide:
+   the current words rush away downstream and fade, then the new part flows in */
+const OUT = 1300, IN = 1700;
+function moveTo(ch) {
+  closeSheet();
+  if (looking) putDown();
+  panel.style.display = "none";
+  rc.remove("caught");
+  rc.add("moving-river");
+  chapter = ch; collected = []; ownIndex = 0;
+  flood = null; frozen = false; locked = false; lastCatch = []; reveal = 0;
+  swap = { start: null, swapped: false };
+  startFlow();
+}
+function stepSwap(t) {
+  if (swap.start === null) swap.start = t;
+  const e = t - swap.start;
+  if (e < OUT) {
+    const u = e / OUT;
+    speedMul = 1 + 40 * u * u;
+    waterAlpha = 1 - u;
+  } else {
+    if (!swap.swapped) { buildStory(chapter); head = 0; phase = 0; swap.swapped = true; }
+    const u = Math.min(1, (e - OUT) / IN);
+    speedMul = 1 + 40 * (1 - u) * (1 - u);
+    waterAlpha = u;
+    if (u >= 1) { swap = null; speedMul = 1; waterAlpha = 1; rc.remove("moving-river"); }
+  }
+}
+function openSheet() {
+  chapterButtons($("sheetChoices"), moveTo, chapter);
+  $("sheet").style.display = "block";
+}
+function closeSheet() { $("sheet").style.display = "none"; }
+
+async function enterRiver(ch) {
+  if (document.fonts && document.fonts.ready) {
+    await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]);
+  }
+  chapter = ch; collected = []; ownIndex = 0;
+  flood = null; frozen = false; locked = false; lastCatch = []; reveal = 0;
+  ready = false; looking = false; swap = null; speedMul = 1; waterAlpha = 1;
+  rc.remove("looking", "caught");
+  rc.add("arriving");
+  panel.style.display = "none";
+  show("river");
+  buildPath();
+  buildStory(chapter);
+  head = 0; phase = 0;
+  sizeLens();
+  setTip();
+  startFlow();
+  setTimeout(() => rc.remove("arriving"), 600);
+  setTimeout(() => { ready = true; $("binoBtn").classList.add("call"); }, 2600);
+  setTimeout(() => $("guide").classList.remove("zoom"), 1200);
+}
+
+const esc = t => t.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+/* how a caught label reads: English sentence about Pie (+ Thai first for Thai labels) */
+function sentenceFor(i, sentIdx) {
+  const L = labels[i];
+  let t = (sentenceText[sentIdx] || "").trim().replace(/^[^A-Za-z\u0E00-\u0E7F“"]+/, "");
+  const plain = `Pie is ${L.name}${L.gloss ? ", " + L.gloss : ""}.`;
+  if (L.self || L.visitor) {
+    // her own words, or a visitor's sentence: keep as written
+  } else if (/\bPie\b/.test(t)) {
+    // already about Pie
+  } else if (/\b[Ss]he (is|’s|'s)\b/.test(t)) {
+    t = t.replace(/\b([Ss])he (is|’s|'s)\b/, (m, s1, v) => "Pie" + (v === "is" ? " is" : v));
+  } else if (/\b[Ss]he\b/.test(t) && !/\bher\b[\s\S]*\b[Ss]he\b/.test(t)) {
+    t = t.replace(/\b[Ss]he\b/, "Pie");
+  } else {
+    t = plain;
+  }
+  let th = "";
+  if (isThai(L.name) && !L.self && !L.visitor) {
+    th = thaiLine(L.name);
+    t = t.replace(`${L.name}, `, "");
+    if (t === plain) t = `Pie is ${L.gloss}.`;
+    if (/^Some say\b/.test(t)) th = "บางคนบอกว่า" + th;
+    else if (/^To some\b/.test(t)) th = "สำหรับบางคน " + th;
+    else if (/^Sometimes\b/.test(t)) th = "บางครั้ง" + th;
+  }
+  if (L.visitor) t = `Pie is ${L.name}.`;
+  return { t, th, self: L.self, visitor: L.visitor };
+}
+
+/* Pie's own words about herself in this part of the River, one at a time */
+let ownIndex = 0, ownPool = [];
+function ownLine() { return ownPool.length ? ownPool[ownIndex++ % ownPool.length] : null; }
+
+function focusView() {
+  if (!looking || !running || flood) return;
+  running = false;
+  const cs = lensCenters();
+  const best = new Map(), sentOf = new Map(); // label -> distance from the middle of the lens, and its sentence
+  for (const f of frame) {
+    if (f.g.label < 0) continue;
+    const cx = f.X + f.adv / 2, cy = f.Y - f.px * 0.35;
+    for (const [x, y, r] of cs) {
+      const d = Math.hypot(cx - x, cy - y);
+      if (d < r) { best.set(f.g.label, Math.min(best.get(f.g.label) ?? Infinity, d)); sentOf.set(f.g.label, f.g.sentence); }
+    }
+  }
+  // up to three labels nearest the middle of your view
+  const picked = [];
+  [...best.entries()].sort((a, b) => a[1] - b[1]).forEach(([i]) => {
+    if (picked.length < 3 && !picked.some(j => labels[j].key === labels[i].key)) picked.push(i);
+  });
+  const lines = picked.map(i => ({ ...sentenceFor(i, sentOf.get(i)), i }));
+  // remember the first catch: letting go will turn the whole River into it
+  if (!locked) lastCatch = lines.map(l => ({ text: tagged(l), visitor: l.visitor }));
+  rc.add("caught");
+
+  $("fragment").innerHTML = lines.length
+    ? lines.map(l => l.self
+        ? `<p class="caught self">“${esc(l.t)}”<span class="who">— Pie, about herself</span></p>`
+        : `<p class="caught">${l.th ? `<span class="th">${esc(l.th)}</span>` : ""}${esc(l.t)}` +
+          (l.visitor ? `<span class="who">a word left by someone who visited before you</span>` : "") +
+          `</p>`).join("")
+    : `<p class="caught">…just water.</p>`;
+  // then one line of how Pie described herself in this part of her life
+  const own = lines.length ? ownLine() : null;
+  $("own").innerHTML = own ? `<span class="who">Pie, about herself:</span>“${esc(own)}”` : "";
+  $("quote").style.display = "none";
+  panel.style.display = "block";
+  panel.scrollTop = 0;
+}
+
+/* a caught sentence, with its label marked again so the binoculars can find it in the new River */
+function tagged(l) {
+  const L = labels[l.i];
+  const tag = L.gloss ? `[${L.name}|${L.gloss}]` : `[${L.name}]`;
+  const needle = isThai(L.name) && L.gloss ? L.gloss : L.name;
+  const at = l.t.indexOf(needle);
+  return at >= 0 ? l.t.slice(0, at) + tag + l.t.slice(at + needle.length) : `Pie is ${tag}.`;
+}
+
+/* let go: the first time, the whole River becomes only what you caught */
+function letGo() {
+  panel.style.display = "none";
+  rc.remove("caught", "looking");
+  looking = false;
+  setTip();
+  if (!locked && lastCatch.length) {
+    locked = true;
+    const old = frame;
+    buildStory(chapter, lastCatch);
+    head = 0; phase = 0;
+    layout();
+    flood = { old, cx: lens.x, cy: lens.y, t0: performance.now(), u: 0 };
+    frozen = true;
+  }
+  startFlow();
+}
+
+
+document.addEventListener("pointermove", e => {
+  if (looking && running) placeLens(e.clientX, e.clientY);
+  else if (!looking) { lens.x = e.clientX; lens.y = e.clientY; }
+});
+$("world").addEventListener("pointerdown", e => {
+  if (flood) return;
+  if (!looking) {
+    // lift the binoculars to your eyes, right where you clicked
+    lens.x = e.clientX; lens.y = e.clientY;
+    pickUp();
+    return;
+  }
+  placeLens(e.clientX, e.clientY);
+  focusView();
+});
+$("binoBtn").addEventListener("click", () => { looking ? putDown() : pickUp(); });
+$("letgo").addEventListener("click", letGo);
+
+$("restart").addEventListener("click", () => { panel.style.display = "none"; openSheet(); });
+$("moveBtn").addEventListener("click", openSheet);
+$("sheetClose").addEventListener("click", () => {
+  closeSheet();
+  if (document.body.classList.contains("caught")) panel.style.display = "block";
+});
+
+addEventListener("resize", () => {
+  if (!isOn("river")) return;
+  buildPath(); sizeLens(); layout(); draw();
+});
+</script>
+</body>
+</html>
